@@ -8,6 +8,7 @@ use App\Models\Product;
 use Auth;
 use Exception;
 use Illuminate\Support\Str;
+use App\Http\Resources\ProductResource;
 use Illuminate\Support\Facades\Validator;
 
 class ProductController extends Controller
@@ -20,7 +21,7 @@ class ProductController extends Controller
     public function index()
     {
         $products = Product::orderBy('created_at', 'DESC')->paginate(3);
-        return response ()->json($products, 200);
+        return sendResponse(ProductResource::collection($products), 'Product list');
     }
 
     /**
@@ -41,18 +42,32 @@ class ProductController extends Controller
      */
     public function store(Request $request)
     {
-        $products = Product::create([
-            'uuid' => Str::uuid(),
-            'name' => $request->name,
-            'type' => $request->type,
-            'price' => $request->price,
-            'quantity' => $request->quantity,
+        $validator = Validator::make($request->all(), [
+            'uuid' => 'required|string|max:255',
+            'name' => 'required|string|max:255',
+            'type' => 'required|string|max:255',
+            'price' => 'required|numeric',
+            'quantity' => 'required|numeric',
         ]);
-        return response ()->json([
-            "success" => true,
-            "message" => "Product created successfully",
-            "data" => $products
-        ]);
+
+        if ($validator->fails()) return sendError('Validation Error.', $validator->errors(), 422);
+
+        try {
+            $products = Product::create([
+                'uuid' => Str::uuid(),
+                'name' => $request->name,
+                'type' => $request->type,
+                'price' => $request->price,
+                'quantity' => $request->quantity,
+            ]);
+            $success = new ProductResource($product);
+            $message = 'Product created successfully';
+        } catch (Exception $e) {
+            $success = [];
+            $message = 'Product creation failed';
+        }
+
+        return sendResponse($success, $message);
     }
 
     /**
@@ -61,15 +76,12 @@ class ProductController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function show(Request $request)
+    public function show($uuid)
     {
         if (Auth::user()->role == 'admin') {
-            $products = Product::where($uuid)->first();
-            return response ()->json([
-                "success" => true,
-                "message" => "Product found successfully",
-                "data" => $products
-            ]);
+            $products = Product::find($uuid);
+            if (is_null($products)) return sendError('Post not found.');
+            return sendResponse(new ProductResource($products), 'Product found successfully');
         } else {
             return response ()->json([
                 "success" => false,
@@ -87,12 +99,9 @@ class ProductController extends Controller
     public function edit($uuid)
     {
         if (Auth::user()->role == 'admin') {
-            $product = Product::find($uuid);
-            return response()->json([
-                "success" => true,
-                "message" => "Product found successfully",
-                "data" => $product
-            ]);
+            $products = Product::find($uuid);
+            if (is_null($products)) return sendError('Post not found.');
+            return sendResponse(new ProductResource($products), 'Product found successfully');
         } else {
             return response ()->json([
                 "success" => false,
@@ -111,7 +120,7 @@ class ProductController extends Controller
     public function update(Request $request, $uuid)
     {
         if (Auth::user()->role == 'admin') {
-            $product = Product::find($uuid);
+            $product = Product::where('uuid', $uuid);
             $product->update($request->all());
             return response()->json([
                 "success" => true,

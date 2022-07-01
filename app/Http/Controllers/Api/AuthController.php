@@ -64,10 +64,17 @@ class AuthController extends Controller
         return sendResponse($success, $message);
     }
 
-    public function logout(Request $request)
+    public function logout()
     {
-        $token = Auth::user()->token();
-        $token->revoke();
-        return sendResponse([], 'Logout Successful.');
+        try {
+            Auth::logout();
+            $success['token'] = [];
+            $message = 'Logout Successful.';
+        } catch (Exception $e) {
+            $success['token'] = [];
+            $message = 'Logout Failed.';
+        }
+
+        return sendResponse($success, $message);
     }
 }

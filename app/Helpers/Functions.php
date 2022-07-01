@@ -4,7 +4,7 @@ function sendResponse($result, $message){
     $response = [
         'success' => true,
         'message' => $message,
-        'token' => $result['token'],
+        'data' => $result,
     ];
     return response()->json($response, 200);
 }
