@@ -17,23 +17,22 @@ use App\Http\Controllers\Api\ProductController;
 */
 
 Route::prefix('shop')->group(function () {
-    Route::prefix('auth')->group(function () {
-        Route::post('/login', [AuthController::class, 'login']);
-        Route::post('/register', [AuthController::class, 'register']);
-        Route::post('/logout', [AuthController::class, 'logout']);
-    });
+    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/register', [AuthController::class, 'register']);
 
     Route::middleware('auth:api')->group(function () {
+        // Route::resource('/products', ProductController::class);
         Route::get('/products', [ProductController::class, 'index']);
-        Route::get('/products/{uuid}', [ProductController::class, 'show']);
+        Route::get('/products/show/{uuid}', [ProductController::class, 'show']);
         Route::post('/products', [ProductController::class, 'store']);
-        Route::put('/products/{uuid}', [ProductController::class, 'update']);
-        Route::delete('/products/{uuid}', [ProductController::class, 'destroy']);
+        Route::post('/products/update/{uuid}', [ProductController::class, 'update']);
+        Route::post('/products/{uuid}', [ProductController::class, 'destroy']);
+        Route::post('/logout', [AuthController::class, 'logout']);
 
-        Route::get('/transactions', [TransactionController::class, 'index']);
-        Route::get('/transactions/{uuid}', [TransactionController::class, 'show']);
-        Route::post('/transactions', [TransactionController::class, 'store']);
-        Route::put('/transactions/{uuid}', [TransactionController::class, 'update']);
-        Route::delete('/transactions/{uuid}', [TransactionController::class, 'destroy']);
+        // Route::get('/transactions', [TransactionController::class, 'index']);
+        // Route::get('/transactions/{uuid}', [TransactionController::class, 'show']);
+        // Route::post('/transactions', [TransactionController::class, 'store']);
+        // Route::put('/transactions/{uuid}', [TransactionController::class, 'update']);
+        // Route::delete('/transactions/{uuid}', [TransactionController::class, 'destroy']);
     });
 });

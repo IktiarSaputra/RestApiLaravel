@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Validator;
 
 class ProductController extends Controller
 {
+
     /**
      * Display a listing of the resource.
      *
@@ -21,7 +22,14 @@ class ProductController extends Controller
     public function index()
     {
         $products = Product::orderBy('created_at', 'DESC')->paginate(3);
-        return sendResponse(ProductResource::collection($products), 'Product list');
+        return response()->json(
+            [
+                'status' => 'success',
+                'message' => 'Product list',
+                'data' => $products,
+            ]
+        );
+        // return sendResponse(ProductResource::collection($products), 'Product list');
     }
 
     /**
@@ -42,32 +50,36 @@ class ProductController extends Controller
      */
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'uuid' => 'required|string|max:255',
-            'name' => 'required|string|max:255',
-            'type' => 'required|string|max:255',
-            'price' => 'required|numeric',
-            'quantity' => 'required|numeric',
-        ]);
-
-        if ($validator->fails()) return sendError('Validation Error.', $validator->errors(), 422);
-
-        try {
-            $products = Product::create([
-                'uuid' => Str::uuid(),
-                'name' => $request->name,
-                'type' => $request->type,
-                'price' => $request->price,
-                'quantity' => $request->quantity,
+        if (Auth::user()->role == 'admin') {
+            $validator = Validator::make($request->all(), [
+                'name' => 'required|string|max:255',
+                'type' => 'required|string|max:255',
+                'price' => 'required|numeric',
+                'quantity' => 'required|numeric',
             ]);
-            $success = new ProductResource($product);
-            $message = 'Product created successfully';
-        } catch (Exception $e) {
-            $success = [];
-            $message = 'Product creation failed';
+    
+            if ($validator->fails()) return sendError('Validation Error.', $validator->errors(), 422);
+    
+            try {
+                $products = Product::create([
+                    'uuid' => Str::uuid(),
+                    'name' => $request->name,
+                    'type' => $request->type,
+                    'price' => $request->price,
+                    'quantity' => $request->quantity,
+                ]);
+                $success = new ProductResource($products);
+                $message = 'Product created successfully';
+            } catch (Exception $e) {
+                $success = [];
+                $message = 'Product creation failed';
+            }
+    
+            return sendResponse($success, $message);
+        } else {
+            return sendError('unauthorization', [], 401);
         }
-
-        return sendResponse($success, $message);
+        
     }
 
     /**
@@ -78,16 +90,9 @@ class ProductController extends Controller
      */
     public function show($uuid)
     {
-        if (Auth::user()->role == 'admin') {
-            $products = Product::find($uuid);
-            if (is_null($products)) return sendError('Post not found.');
-            return sendResponse(new ProductResource($products), 'Product found successfully');
-        } else {
-            return response ()->json([
-                "success" => false,
-                "message" => "You are not authorized to access this resource"
-            ]);
-        }
+        $products = Product::where('uuid' , '=' ,$uuid)->get()->first();
+        if (is_null($products)) return sendError('Post not found.');
+        return sendResponse(new ProductResource($products), 'Product found successfully');
     }
 
     /**
@@ -103,10 +108,7 @@ class ProductController extends Controller
             if (is_null($products)) return sendError('Post not found.');
             return sendResponse(new ProductResource($products), 'Product found successfully');
         } else {
-            return response ()->json([
-                "success" => false,
-                "message" => "You are not authorized to access this resource"
-            ]);
+            return sendError('unauthorization', [], 401);
         }
     }
 
@@ -120,7 +122,19 @@ class ProductController extends Controller
     public function update(Request $request, $uuid)
     {
         if (Auth::user()->role == 'admin') {
-            $product = Product::where('uuid', $uuid);
+            $validator = Validator::make($request->all(), [
+                'name' => 'required|string|max:255',
+                'type' => 'required|string|max:255',
+                'price' => 'required|numeric',
+                'quantity' => 'required|numeric',
+            ]);
+    
+            if ($validator->fails()) return sendError('Validation Error.', $validator->errors(), 422);
+
+            $product = Product::where('uuid' , '=' ,$uuid)->get()->first();
+
+            if (is_null($product)) return sendError('Product not found.');
+
             $product->update($request->all());
             return response()->json([
                 "success" => true,
@@ -128,10 +142,7 @@ class ProductController extends Controller
                 "data" => $product
             ]);
         } else {
-            return response ()->json([
-                "success" => false,
-                "message" => "You are not authorized to access this resource"
-            ]);
+            return sendError('unauthorization', [], 401);
         }
         
     }
@@ -145,7 +156,8 @@ class ProductController extends Controller
     public function destroy($uuid)
     {
         if (Auth::user()->role == 'admin') {
-            $product = Product::find($uuid);
+            $product = Product::where('uuid' , '=' ,$uuid)->get()->first();
+            if (is_null($product)) return sendError('Product not found.');
             $product->delete();
             return response()->json([
                 "success" => true,
@@ -153,10 +165,7 @@ class ProductController extends Controller
                 "data" => $product
             ]);
         } else {
-            return response ()->json([
-                "success" => false,
-                "message" => "You are not authorized to access this resource"
-            ]);
+            return sendError('unauthorization', [], 401);
         }
     }
 }

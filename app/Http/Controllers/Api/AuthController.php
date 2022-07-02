@@ -26,8 +26,9 @@ class AuthController extends Controller
         if (Auth::attempt($credentials)) {
             
             $user = Auth::user();
+            $token = $user->createToken('accessToken')->accessToken;
             $success['name'] = $user->name;
-            $success['token'] = $user->createToken('accessToken')->accessToken;
+            $success['token'] = $token;
 
             return sendResponse($success, 'Login Successful.');
 
@@ -53,9 +54,10 @@ class AuthController extends Controller
                 'password' => Hash::make($request->password),
             ]);
 
+            $token = $user->createToken('accessToken')->accessToken;
             $success['name'] = $user->name;
             $message = 'Register Successful.';
-            $success['token'] = $user->createToken('accessToken')->accessToken;
+            $success['token'] = $token;
         } catch (Exception $e) {
             $success['token'] = [];
             $message = 'Register Failed.';
@@ -64,10 +66,11 @@ class AuthController extends Controller
         return sendResponse($success, $message);
     }
 
-    public function logout()
+    public function logout(Request $request)
     {
         try {
-            Auth::logout();
+            $accessToken = auth()->user()->token();
+            $accessToken->revoke();
             $success['token'] = [];
             $message = 'Logout Successful.';
         } catch (Exception $e) {

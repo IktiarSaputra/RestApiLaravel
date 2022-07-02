@@ -6,11 +6,17 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\Validator;
+use App\Http\Resources\TransactionResource;
 use Illuminate\Support\Str;
 use Auth;
 
 class TransactionController extends Controller
 {
+
+    public function __construct()
+    {
+        $this->middleware(['auth','verified']);
+    }
     /**
      * Display a listing of the resource.
      *
@@ -19,11 +25,7 @@ class TransactionController extends Controller
     public function index()
     {
         $transaction = Transaction::orderBy('created_at', 'DESC')->paginate(3);
-        return response ()->json([
-            "success" => true,
-            "message" => "Transaction list",
-            "data" => $transaction
-        ]);
+        return sendResponse(TransactionResource::collection($transaction), 'Transaction list');
     }
 
     /**
@@ -44,6 +46,15 @@ class TransactionController extends Controller
      */
     public function store(Request $request)
     {
+        $validator = Validator::make($request->all(), [
+            'uuid' => 'required|string|max:255',
+            'user_id' => 'required|string|max:255',
+            'product_id' => 'required|string|max:255',
+            'amount' => 'required|numeric',
+        ]);
+
+        if ($validator->fails()) return sendError('Validation Error.', $validator->errors(), 422);
+
         $product = Product::find($request->product_id);
         $harga = $product->price;
         $pajak = 10/100 * $harga;
@@ -59,6 +70,8 @@ class TransactionController extends Controller
             'total' => $total,
         ]);
 
+        return sendResponse(new TransactionResource($transaction), 'Transaction created successfully');
+
     }
 
     /**
@@ -70,11 +83,7 @@ class TransactionController extends Controller
     public function show($uuid)
     {
         $transaction = Transaction::find($uuid);
-        return response()->json([
-            "success" => true,
-            "message" => "Transaction found successfully",
-            "data" => $transaction
-        ]);
+        return sendResponse(new TransactionResource($transaction), 'Transaction found');
     }
 
     /**
@@ -86,11 +95,7 @@ class TransactionController extends Controller
     public function edit($uuid)
     {
         $transaction = Transaction::find($uuid);
-        return response()->json([
-            "success" => true,
-            "message" => "Transaction found successfully",
-            "data" => $transaction
-        ]);
+        return sendResponse(new TransactionResource($transaction), 'Transaction found');
 
     }
 
@@ -103,29 +108,29 @@ class TransactionController extends Controller
      */
     public function update(Request $request, $uuid)
     {
-        $transaction = Transaction::find($uuid);
-        $transaction->update($request->all());
-        response()->json([
-            "success" => true,
-            "message" => "Transaction updated successfully",
-            "data" => $transaction
+        $validator = Validator::make($request->all(), [
+            'user_id' => 'required|string|max:255',
+            'product_id' => 'required|string|max:255',
+            'amount' => 'required|numeric',
         ]);
+
+        if ($validator->fails()) return sendError('Validation Error.', $validator->errors(), 422);
+
+        $transaction = Transaction::where('uuid', '=' ,$uuid)->get()->first();
+        $transaction->update($request->all());
+        return sendResponse(new TransactionResource($transaction), 'Transaction updated successfully');
     }
 
     /**
      * Remove the specified resource from storage.
      *
      * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * @return \Illuminate\Http\Responseo
      */
     public function destroy($uuid)
     {
         $transaction = Transaction::find($uuid);
         $transaction->delete();
-        return response()->json([
-            "success" => true,
-            "message" => "Transaction deleted successfully",
-            "data" => $transaction
-        ]);
+        return sendResponse(new TransactionResource($transaction), 'Transaction deleted successfully');
     }
 }
