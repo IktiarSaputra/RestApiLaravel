@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Validator;
 use App\Http\Resources\TransactionResource;
 use Illuminate\Support\Str;
 use Auth;
+use App\Models\Product;
 
 class TransactionController extends Controller
 {
@@ -25,7 +26,11 @@ class TransactionController extends Controller
     public function index()
     {
         $transaction = Transaction::orderBy('created_at', 'DESC')->paginate(3);
-        return sendResponse(TransactionResource::collection($transaction), 'Transaction list');
+        return response()->json([
+                'status' => 'success',
+                'message' => 'Transaction list',
+                'data' => $transaction,
+        ]);
     }
 
     /**
@@ -46,32 +51,44 @@ class TransactionController extends Controller
      */
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'uuid' => 'required|string|max:255',
-            'user_id' => 'required|string|max:255',
-            'product_id' => 'required|string|max:255',
-            'amount' => 'required|numeric',
-        ]);
+        if (Auth::user()->role != 'admin') {
+            $validator = Validator::make($request->all(), [
+                'product_id' => 'required|string|max:255',
+                'amount' => 'required|numeric',
+            ]);
+    
+            if ($validator->fails()) return sendError('Validation Error.', $validator->errors(), 422);
+    
+            $product = Product::where('id', $request->product_id)->get()->first();
+            if ($product->quantity > 0 && $request->amount <= $product->quantity) {
+                $harga = $product->price;
+                $pajak = 10/100 * $harga;
+                $biayaadmin = 5/100 * $harga + $pajak;
+                $adminfee = $biayaadmin;
+                $amount = $request->amount * $harga;
+                $total = $biayaadmin + $amount + $pajak;
+                $transaction = Transaction::create([
+                    'uuid' => Str::uuid(),
+                    'user_id' => Auth::user()->id,
+                    'product_id' => $request->product_id,
+                    'amount' =>$request->amount,
+                    'tax' => $pajak,
+                    'admin_fee' => $biayaadmin,
+                    'total' => $total,
+                ]);
 
-        if ($validator->fails()) return sendError('Validation Error.', $validator->errors(), 422);
-
-        $product = Product::find($request->product_id);
-        $harga = $product->price;
-        $pajak = 10/100 * $harga;
-        $biayaadmin = 5/100 * $harga + $pajak;
-        $total = $harga + $biayaadmin;
-        $transaction = Transaction::create([
-            'uuid' => Str::uuid(),
-            'user_id' => Auth::user()->id,
-            'product_id' => $request->product_id,
-            'amount' =>$request->amount,
-            'tax' => $pajak,
-            'admin_fee' => $biayaadmin,
-            'total' => $total,
-        ]);
-
-        return sendResponse(new TransactionResource($transaction), 'Transaction created successfully');
-
+                $product->update([
+                    'quantity' => $product->quantity - $request->amount,
+                ]);
+        
+                return sendResponse(new TransactionResource($transaction), 'Transaction created successfully');
+            } else {
+                return sendError('Product quantity is not enough', [], 422);
+            }
+            
+        } else {
+            return sendError('unauthorization', [], 401);
+        }
     }
 
     /**
@@ -82,7 +99,7 @@ class TransactionController extends Controller
      */
     public function show($uuid)
     {
-        $transaction = Transaction::find($uuid);
+        $transaction = Transaction::where('uuid', $uuid)->get()->first();
         return sendResponse(new TransactionResource($transaction), 'Transaction found');
     }
 
@@ -94,7 +111,7 @@ class TransactionController extends Controller
      */
     public function edit($uuid)
     {
-        $transaction = Transaction::find($uuid);
+        $transaction = Transaction::where('uuid',$uuid)->get()->first();
         return sendResponse(new TransactionResource($transaction), 'Transaction found');
 
     }
@@ -129,7 +146,8 @@ class TransactionController extends Controller
      */
     public function destroy($uuid)
     {
-        $transaction = Transaction::find($uuid);
+        $transaction = Transaction::where('uuid' , '=' ,$uuid)->get()->first();
+        if (is_null($transaction)) return sendError('Transaction not found.');
         $transaction->delete();
         return sendResponse(new TransactionResource($transaction), 'Transaction deleted successfully');
     }

@@ -4,7 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ProductController;
-
+use App\Http\Controllers\Api\TransactionController;
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -29,10 +29,10 @@ Route::prefix('shop')->group(function () {
         Route::post('/products/{uuid}', [ProductController::class, 'destroy']);
         Route::post('/logout', [AuthController::class, 'logout']);
 
-        // Route::get('/transactions', [TransactionController::class, 'index']);
-        // Route::get('/transactions/{uuid}', [TransactionController::class, 'show']);
-        // Route::post('/transactions', [TransactionController::class, 'store']);
-        // Route::put('/transactions/{uuid}', [TransactionController::class, 'update']);
-        // Route::delete('/transactions/{uuid}', [TransactionController::class, 'destroy']);
+        Route::get('/transaction', [TransactionController::class, 'index']);
+        Route::get('/transaction/show/{uuid}', [TransactionController::class, 'show']);
+        Route::post('/transaction', [TransactionController::class, 'store']);
+        Route::post('/transaction/update/{uuid}', [TransactionController::class, 'update']);
+        Route::post('/transaction/{uuid}', [TransactionController::class, 'destroy']);
     });
 });
